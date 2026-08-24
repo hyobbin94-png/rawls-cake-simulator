@@ -1,0 +1,2054 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>존 롤스의 케이크 나누기 시뮬레이터</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', 'Inter', sans-serif;
+            background-color: #fafaf9;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        /* Beautiful custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f5f5f4;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #e7e5e4;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #d6d3d1;
+        }
+        .veil-bg {
+            background: radial-gradient(circle, #f3e8ff 0%, #e0e7ff 100%);
+        }
+        .shaking {
+            animation: shake 0.5s infinite alternate;
+        }
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(0px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(2px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(2px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+        /* Smooth Fade-in effect for banners */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        /* [모바일 드래그 전용 최적화 스타일] */
+        #cake-svg {
+            touch-action: none; /* 드래그할 때 모바일 전체 브라우저가 화면을 끌어올리는 스크롤 모션을 방지 */
+            -webkit-tap-highlight-color: transparent; /* 터치 시 파란 점멸 영역 해제 */
+        }
+        .handle-grabber {
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-stone-800 flex flex-col justify-between overflow-x-hidden">
+
+    <!-- Top Navigation / Header -->
+    <header class="bg-white border-b border-stone-200 py-4 px-6 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <span class="text-3xl">🍰</span>
+                <div>
+                    <h1 class="text-xl font-bold text-stone-900 tracking-tight flex items-center gap-2">
+                        롤스의 분배 정의론 시뮬레이터 <span class="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">모둠 협동형</span>
+                    </h1>
+                    <p class="text-xs text-stone-500">모든 선의 경계가 조절되는 파스텔 케이크와 무지의 베일</p>
+                </div>
+            </div>
+            <!-- Progress Steps Bar -->
+            <div class="flex items-center gap-2 text-[10px] sm:text-xs font-semibold overflow-x-auto max-w-full pb-1">
+                <div id="step-badge-0" class="px-2.5 py-1.5 rounded-full bg-amber-600 text-white shadow-sm transition-all shrink-0">0. 모둠 설정</div>
+                <div class="text-stone-300 shrink-0">➔</div>
+                <div id="step-badge-1" class="px-2.5 py-1.5 rounded-full bg-stone-200 text-stone-600 transition-all shrink-0">1. 기득권 분배</div>
+                <div class="text-stone-300 shrink-0">➔</div>
+                <div id="step-badge-2" class="px-2.5 py-1.5 rounded-full bg-stone-200 text-stone-600 transition-all shrink-0">2. 역할 교환</div>
+                <div class="text-stone-300 shrink-0">➔</div>
+                <div id="step-badge-3" class="px-2.5 py-1.5 rounded-full bg-stone-200 text-stone-600 transition-all shrink-0">3. 역할교환을 통한 분배와 성찰</div>
+                <div class="text-stone-300 shrink-0">➔</div>
+                <div id="step-badge-4" class="px-2.5 py-1.5 rounded-full bg-stone-200 text-stone-600 transition-all shrink-0">4. 원초적 합의</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow p-4 md:p-8 max-w-7xl w-full mx-auto transition-all duration-500" id="main-container">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            <!-- Left Panel: Cake & Interactive Area -->
+            <section class="lg:col-span-7 bg-white rounded-3xl border border-stone-200 p-6 shadow-md min-h-[580px] flex flex-col justify-between relative overflow-hidden" id="left-panel">
+                
+                <!-- 👑 자르기 담당자 선출 완료! (1단계 기득권 분할 시 상단 배너) -->
+                <div id="cutter-banner" class="hidden p-5 bg-orange-50 border border-orange-100 rounded-2xl text-orange-950 text-sm shadow-sm mb-4 animate-fade-in w-full">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-base font-extrabold text-orange-800">👑 자르기 담당자 선출 완료!</span>
+                    </div>
+                    <p class="text-sm text-stone-800 leading-normal">
+                        우리 모둠의 칼자루를 쥔 사람은 <strong id="cutter-name-display" class="text-amber-700 font-extrabold underline">홍길동</strong>입니다.
+                    </p>
+                    <p class="mt-3 text-xs text-orange-800 leading-relaxed bg-white/60 p-3 rounded-2xl border border-orange-150">
+                        💡 <strong>[기득권 미션]</strong> 자르기 담당자는 본인의 권력을 사용해 <strong>매우 불평등하게</strong> 케이크를 잘라보세요. 자신이 먹을 조각(자신에게 배정할 조각)은 70% 이상으로 엄청나게 크게 만들고, 다른 친구들은 아주 작게 분배해 보세요!
+                    </p>
+                </div>
+
+                <!-- 🎭 4단계 원초적 합의 단계 전용 '무지의 베일' 철학적 상단 설명 상자 -->
+                <div id="step4-veil-explanation" class="hidden w-full p-4 mb-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-150 rounded-2xl text-indigo-950 text-xs leading-relaxed shadow-sm animate-fade-in">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <span class="text-lg">🎭</span>
+                        <span class="font-extrabold text-indigo-800 text-sm tracking-tight">무지의 베일 (Veil of Ignorance) 장막 설정</span>
+                    </div>
+                    <p class="text-stone-700 leading-relaxed">
+                        이제 여러분은 현실 사회에서 가졌던 우월한 기득권이나 약자의 조건 등 <strong>자신의 사회적 지위와 정체성(역할 카드)을 완벽히 모르는 원초적 상황</strong>에 진입했습니다. 만약 여러분이 이 장막을 벗었을 때 <strong>가장 가난하고 소외된 최소 수혜자</strong>가 되더라도 충분히 생존할 수 있는 최선의 정의로운 케이크 비율을 합의해보세요!
+                    </p>
+                </div>
+
+                <!-- Step 0 Left Content -->
+                <div id="step-0-visual" class="flex-grow flex flex-col items-center justify-center text-center p-6">
+                    <div class="text-8xl mb-6 animate-bounce">🧁</div>
+                    <h2 class="text-2xl font-extrabold text-stone-900 mb-2">달콤하고 부드러운 파스텔 케이크 나누기</h2>
+                    <p class="text-stone-600 max-w-md text-sm leading-relaxed mb-6">
+                        이 예쁜 파스텔톤 케이크는 우리 사회의 한정된 <strong>'부, 소득, 기회, 권력'</strong>을 상징합니다. 과연 여러분은 이 가치를 어떻게 나누어 가질 건가요?
+                    </p>
+                    <div class="p-4 bg-stone-50 border border-stone-150 rounded-2xl text-left max-w-md w-full">
+                        <span class="text-xs font-bold text-amber-600 uppercase tracking-wider block mb-1">💡 활동 가이드</span>
+                        <p class="text-xs text-stone-500 leading-normal">모둠의 인원수를 선택하고, 각자 이름과 우리 사회에서 맡을 '역할(처지)'을 지정하세요. 프리셋 카드를 활용하거나 세상에 하나뿐인 역할을 직접 만들 수 있습니다!</p>
+                    </div>
+                </div>
+
+                <!-- Step 1 & Step 4 Left Content: Interactive SVG Sliced Cake -->
+                <div id="cake-slicing-visual" class="hidden flex-grow flex flex-col items-center justify-center relative p-2 select-none">
+                    <h3 id="cake-instruction-title" class="text-sm font-semibold text-stone-500 mb-4 text-center">
+                        원 둘레를 따라 늘어선 <span class="text-rose-500 font-bold">빨간 조절점(●)</span>을 잡고 드래그하여 케이크를 자유롭게 잘라보세요.
+                    </h3>
+                    
+                    <!-- Cake SVG Container (Static Layers defined inside HTML for high performance) -->
+                    <div class="relative w-[340px] h-[340px] md:w-[400px] md:h-[400px] flex items-center justify-center">
+                        <svg id="cake-svg" class="w-full h-full cursor-pointer" viewBox="0 0 400 400">
+                            <defs>
+                                <radialGradient id="pastelVanilla" cx="50%" cy="50%" r="50%">
+                                    <stop offset="0%" stop-color="#FFFDF6" />
+                                    <stop offset="100%" stop-color="#FFF3D1" />
+                                </radialGradient>
+                                <radialGradient id="pastelStrawberry" cx="50%" cy="50%" r="50%">
+                                    <stop offset="0%" stop-color="#FFF0F3" />
+                                    <stop offset="100%" stop-color="#FFD1DC" />
+                                </radialGradient>
+                                <radialGradient id="pastelMint" cx="50%" cy="50%" r="50%">
+                                    <stop offset="0%" stop-color="#E6FDF4" />
+                                    <stop offset="100%" stop-color="#B6F3D8" />
+                                </radialGradient>
+                                <radialGradient id="pastelLavender" cx="50%" cy="50%" r="50%">
+                                    <stop offset="0%" stop-color="#F5F0FF" />
+                                    <stop offset="100%" stop-color="#DDD0FC" />
+                                </radialGradient>
+                                <radialGradient id="pastelPeach" cx="50%" cy="50%" r="50%">
+                                    <stop offset="0%" stop-color="#FFF8F0" />
+                                    <stop offset="100%" stop-color="#FFE3C7" />
+                                </radialGradient>
+                            </defs>
+                            
+                            <!-- Static Base Plate Layer (Rendered only once, never cleared) -->
+                            <circle cx="200" cy="200" r="170" fill="#fffdfa" stroke="#f5ebe0" stroke-width="5" filter="drop-shadow(0px 6px 12px rgba(0,0,0,0.06))" />
+                            <circle cx="200" cy="200" r="160" fill="none" stroke="#eeddd3" stroke-width="1.5" stroke-dasharray="4 4" />
+                            
+                            <!-- Dynamic Slices Layer (Cleared and updated quickly) -->
+                            <g id="slices-group"></g>
+                            
+                            <!-- Dynamic Boundary Lines and Handles Layer -->
+                            <g id="handles-group"></g>
+                        </svg>
+                        
+                        <!-- Center Core Text -->
+                        <div class="absolute inset-0 m-auto w-16 h-16 bg-amber-50 rounded-full border-4 border-amber-500 flex flex-col items-center justify-center shadow-lg pointer-events-none">
+                            <span class="text-xs font-semibold text-amber-700">사회적</span>
+                            <span class="text-sm font-black text-amber-900 leading-none">부(富)</span>
+                        </div>
+                    </div>
+
+                    <!-- Slice Percentage Display Table -->
+                    <div id="percentage-indicator" class="mt-4 grid grid-cols-5 gap-2 w-full max-w-md text-center text-xs font-bold text-stone-600">
+                        <!-- Filled by JS -->
+                    </div>
+
+                    <!-- 🧁 4단계 실시간 사회적 총 재화량 (케이크 총량) 표시 카드 -->
+                    <div id="step4-live-cakesize-card" class="hidden mt-3 w-full max-w-md p-5 bg-stone-50 border border-stone-200 rounded-3xl shadow-sm text-center animate-fade-in space-y-3">
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-extrabold text-stone-500 uppercase tracking-wider block">📈 실시간 사회적 총 재화량 (Cake Total Size)</span>
+                            <div class="flex items-center justify-center gap-2">
+                                <span id="live-cakesize-arrow" class="text-xl font-extrabold text-stone-800">•</span>
+                                <span id="live-cakesize-display" class="text-3xl font-black text-stone-900 tracking-tight">100g</span>
+                                <span class="text-xs text-stone-400 font-semibold">(기준치: 100g)</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Realtime Pastel Mint Gauge Bar -->
+                        <div class="w-full bg-stone-200 rounded-full h-3 overflow-hidden shadow-inner relative">
+                            <div id="live-cakesize-bar" class="bg-gradient-to-r from-emerald-400 to-teal-500 h-full w-[14%] transition-all duration-150 rounded-full"></div>
+                        </div>
+                    </div>
+
+                    <!-- 💎 4단계 원초적 합의 전용 실시간 최하위층 몫 추적기 -->
+                    <div id="step4-live-maximin-card" class="hidden mt-4 w-full max-w-md p-4 bg-gradient-to-r from-teal-500 to-emerald-600 text-white rounded-2xl shadow-md border border-emerald-400/30 animate-fade-in">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <span class="text-3xl filter drop-shadow">⚖️</span>
+                                <div>
+                                    <span class="text-[10px] text-teal-100 block font-bold uppercase tracking-wider">실시간 약자 보호 지표 (Maximin)</span>
+                                    <span class="text-sm font-extrabold text-white block">최소 수혜자(가장 작은 조각)의 몫</span>
+                                </div>
+                            </div>
+                            <div class="bg-white/10 px-3 py-1 rounded-xl border border-white/20 text-right">
+                                <span id="live-min-slice-display" class="text-3xl font-black text-yellow-300 tracking-tight transition-all duration-300">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2 Left Content -->
+                <div id="veil-active-visual" class="hidden flex-grow flex flex-col items-center justify-center text-indigo-950 p-6 veil-bg rounded-2xl min-h-[450px]">
+                    <div class="absolute inset-0 bg-indigo-100 opacity-20 pointer-events-none animate-pulse"></div>
+                    <div class="text-8xl mb-6 shaking">🔄</div>
+                    <h2 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 via-indigo-700 to-amber-600 tracking-wider text-center animate-pulse">무작위 역할 교환</h2>
+                    <p class="text-stone-600 max-w-md text-center text-sm leading-relaxed mt-4">
+                        이제 여러분은 현실 사회에서 기득권이라 자부했던 모든 신분과 부의 우위를 보장받을 수 없습니다.<br>
+                        사회적 역할 교환을 통해 <strong>타인의 처지를 진심으로 공감하는 역지사지</strong>를 경험해 보세요. 부정의한 분배 구조가 구성원 모두에게 어떤 고통을 주는지 느낄 시간입니다!
+                    </p>
+                    <div id="shuffling-loader" class="hidden mt-6 flex items-center gap-3 bg-white px-6 py-3 rounded-full border border-indigo-200 shadow-sm">
+                        <svg class="animate-spin h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="text-xs font-semibold tracking-widest text-indigo-800 animate-pulse">사회의 신분과 조건이 뒤바뀌는 중...</span>
+                    </div>
+                </div>
+
+                <!-- Step 3 Left Content -->
+                <div id="distribution-visual" class="hidden flex-grow flex flex-col items-center justify-center p-6">
+                    <!-- 📢 실시간 현재 진행 상태 -->
+                    <div id="turn-announcer-container" class="w-full max-w-xl mb-6 p-4 bg-amber-50 border border-amber-100 rounded-2xl text-stone-700 shadow-sm animate-fade-in">
+                        <span class="text-[10px] font-extrabold text-amber-600 block mb-1 uppercase tracking-wider">📢 현재 진행 상태</span>
+                        <div id="turn-announcer" class="text-sm font-bold text-stone-800 leading-relaxed">
+                            뒤집을 모둠원에게 디바이스를 건네주세요.
+                        </div>
+                    </div>
+
+                    <h2 id="step3-instruction" class="text-lg font-bold text-stone-800 mb-6 text-center">👇 뒷면으로 뒤집힌 카드 중 하나를 선택해 당신의 새로운 조각 비율과 변경된 역할을 확인하세요!</h2>
+                    
+                    <div id="mystery-cards-container" class="grid grid-cols-2 gap-4 w-full max-w-xl justify-center items-stretch">
+                        <!-- Dynamic Flip Cards -->
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- Right Panel: Controls & Step Information -->
+            <section class="lg:col-span-5 flex flex-col gap-6" id="right-panel">
+                
+                <!-- Dynamic Active Instruction Box -->
+                <div class="bg-amber-50 border border-amber-100 rounded-3xl p-6 shadow-sm">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="bg-amber-600 text-white text-xs font-bold px-2 py-1 rounded">단계 가이드</span>
+                        <span id="current-step-label" class="text-xs text-amber-800 font-bold uppercase tracking-wider">0. 모둠원 및 역할 등록</span>
+                    </div>
+                    <p id="step-long-description" class="text-sm text-stone-600 leading-relaxed">
+                        모둠원 수(4명 또는 5명)를 선택하고 학생들의 이름과 역할 카드를 지정해주세요. 각 역할은 이 가상 사회에서 가지는 <strong>기본 환경(조건)</strong>을 대표하게 됩니다.
+                    </p>
+                </div>
+
+                <!-- Dynamic Control Container -->
+                <div class="bg-white rounded-3xl border border-stone-200 p-6 shadow-md flex-grow">
+                    
+                    <!-- =================== STEP 0 CONTROLS =================== -->
+                    <div id="controls-step-0" class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-bold text-stone-700 mb-2">1. 모둠 인원 선택</label>
+                            <div class="flex gap-3">
+                                <button onclick="setMemberCount(4)" id="btn-count-4" class="flex-1 py-3 px-4 rounded-xl font-bold border-2 border-amber-600 bg-amber-50 text-amber-700 transition-all shadow-sm">
+                                    👨‍👩‍👦‍👦 4명 모둠
+                                </button>
+                                <button onclick="setMemberCount(5)" id="btn-count-5" class="flex-1 py-3 px-4 rounded-xl font-bold border-2 border-stone-200 bg-white text-stone-600 hover:border-stone-300 transition-all">
+                                    👨‍👩‍‍👦 5명 모둠
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-stone-700 mb-3">2. 모둠원 정보 및 역할 카드 커스텀</label>
+                            <div id="members-input-list" class="space-y-3">
+                                <!-- Dynamic member inputs -->
+                            </div>
+                        </div>
+
+                        <button onclick="goToStep1()" class="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold py-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 text-base">
+                            자르기 담당(기득권) 설정하기 ➔
+                        </button>
+                    </div>
+
+                    <!-- =================== STEP 1 CONTROLS =================== -->
+                    <div id="controls-step-1" class="hidden space-y-6">
+                        <!-- Assignment Area -->
+                        <div class="space-y-3">
+                            <h4 class="text-sm font-bold text-stone-700">각 조각에 모둠원 배분하기</h4>
+                            <p class="text-xs text-stone-500">왼쪽의 케이크 조각을 터치/클릭한 뒤, 아래에서 매칭할 모둠원을 골라보세요.</p>
+                            
+                            <div id="slice-assigner-container" class="space-y-2">
+                                <!-- Rendered dynamically -->
+                            </div>
+                        </div>
+
+                        <button onclick="goToStep2()" id="btn-next-to-veil" class="w-full bg-stone-900 opacity-50 cursor-not-allowed text-white font-bold py-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 text-base" disabled>
+                            다음 단계로 (비활성화) ➔
+                        </button>
+                        <p id="assign-warning" class="text-center text-xs text-rose-500 font-semibold">⚠️ 모든 조각에 모둠원을 반드시 매칭해야 진행할 수 있습니다.</p>
+                    </div>
+
+                    <!-- =================== STEP 2 CONTROLS =================== -->
+                    <div id="controls-step-2" class="space-y-6 hidden">
+                        <div id="step-2-initial-prompt" class="bg-indigo-50 text-indigo-950 p-5 rounded-2xl border border-indigo-100 text-xs leading-relaxed space-y-2 shadow-sm">
+                            <p class="font-extrabold text-indigo-700 text-sm">🔄 무작위 역할 교환: 역지사지 체험</p>
+                            <p class="text-indigo-900">모둠원들이 설정해둔 각자의 사회적 역할 카드가 공평하게 서로 뒤섞입니다.</p>
+                            <p class="text-indigo-800 font-medium">내가 1단계에서 한없이 이기적으로 잘라 두었던 빈약한 케이크를 내가 배정받는 '부정의한 분배의 결과'를 마주할 수도 있습니다!</p>
+                        </div>
+
+                        <button onclick="triggerVeilShuffle()" id="btn-shuffle" class="w-full bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white font-black py-4 rounded-xl transition-all shadow-lg text-lg animate-pulse">
+                            🔄 무작위 역할 교환 실행!
+                        </button>
+
+                        <!-- Hidden result screen: No direct list shown to maximize mystery -->
+                        <div id="step-2-results-container" class="hidden space-y-4 bg-indigo-50/70 p-5 rounded-2xl border border-indigo-150 shadow-sm animate-fade-in text-center">
+                            <div class="w-12 h-12 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center mx-auto text-2xl mb-1 animate-bounce">
+                                🎭
+                            </div>
+                            <h4 class="text-sm font-extrabold text-indigo-950">🔄 역할 교환이 비밀리에 완료되었습니다!</h4>
+                            <p class="text-xs text-stone-600 leading-relaxed">
+                                모든 모둠원의 본래 신분과 조건이 완벽하게 교차 교환되었습니다. <br>
+                                이제 여러분은 <strong>자신이 사회에서 어떤 처지가 되었는지 전혀 알 수 없습니다.</strong>
+                            </p>
+                            <p class="text-xs text-indigo-800 font-semibold bg-white p-3 rounded-xl border border-indigo-100">
+                                💡 3단계로 이동해 뒤집힌 카드를 하나씩 뒤집으며, 여러분의 새로운 역할과 획득하게 된 실질적인 몫을 마주해보세요!
+                            </p>
+                            <button onclick="goToStep3()" class="w-full mt-4 bg-stone-900 hover:bg-stone-800 text-white font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm shadow-md">
+                                3단계: 분배와 성찰로 이동 ➔
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- =================== STEP 3 CONTROLS =================== -->
+                    <div id="controls-step-3" class="hidden space-y-6">
+                        <!-- Debate Trigger -->
+                        <div id="debate-panel" class="hidden space-y-4 pt-4 border-t border-stone-100">
+                            <div class="p-4 bg-rose-50 border border-rose-100 rounded-xl text-rose-950 text-xs space-y-2">
+                                <span class="font-black text-rose-700 block text-sm">💡 모둠 성찰 및 토론 미션</span>
+                                <p><strong>1. 가장 작은 조각과 불리한 환경의 역할 카드를 동시에 배정받은 학생의 심정은 어떤가요?</strong></p>
+                                <p><strong>2. 처음에 큰 조각을 가질 줄 알고 이기적으로 자른 기득권자는 왜 절망하게 되었나요?</strong></p>
+                                <p><strong>3. 다시 자를 때 자신이 누구의 자리에 설지 전혀 모른다면, 여전히 불평등하게 자르시겠습니까?</strong></p>
+                            </div>
+                            <button onclick="goToStep4()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2">
+                                4단계: 무지의 베일 속 공정 자르기 ➔
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- =================== STEP 4 CONTROLS =================== -->
+                    <div id="controls-step-4" class="hidden space-y-6">
+                        <div class="space-y-4">
+                            <!-- Realtime Maximin Scoreboard -->
+                            <div class="p-4 bg-stone-900 text-white rounded-2xl space-y-2 shadow-sm">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-stone-400 font-bold">가장 작은 조각(최소 수혜자)의 합의된 몫</span>
+                                    <span id="min-slice-display" class="text-base font-bold text-teal-400">0%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button onclick="triggerStep4Distribution()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-4 rounded-xl transition-all shadow-md">
+                            공정하게 나눈 카드 분배하기 ➔
+                        </button>
+                    </div>
+
+                    <!-- =================== FINAL STEP 4 RESULT =================== -->
+                    <div id="controls-step-4-result" class="hidden space-y-6">
+                        <h4 class="text-base font-bold font-black flex items-center gap-2" id="final-result-title">
+                            <!-- Dynamically bound Title and Badges -->
+                        </h4>
+                        
+                        <div id="final-distribution-cards" class="grid grid-cols-2 gap-3">
+                            <!-- Dynamic Cards -->
+                        </div>
+
+                        <!-- Dynamic Evaluation Banner -->
+                        <div id="final-evaluation-banner">
+                            <!-- Dynamic evaluation text added by JS -->
+                        </div>
+
+                        <button onclick="resetWholeApp()" class="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold py-3 rounded-xl transition-all">
+                            🔄 새로운 모둠활동 다시 시작하기
+                        </button>
+                    </div>
+
+                </div>
+
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Custom Dialog / Modal -->
+    <div id="custom-modal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-stone-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-stone-200 transform scale-95 transition-all">
+            <div class="text-center">
+                <span id="modal-emoji" class="text-5xl block mb-3">🔔</span>
+                <h3 id="modal-title" class="text-lg font-bold text-stone-900 mb-2">알림</h3>
+                <p id="modal-message" class="text-sm text-stone-500 leading-relaxed mb-6">여기에 메시지가 들어갑니다.</p>
+                <button onclick="closeModal()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-xl transition-all shadow-md">
+                    확인
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Role Customization Modal -->
+    <div id="role-modal" class="hidden fixed inset-0 z-50 bg-stone-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-stone-200 overflow-hidden transform scale-95 transition-all">
+            <!-- Modal Header -->
+            <div class="p-5 border-b border-stone-100 flex justify-between items-center bg-stone-50">
+                <div>
+                    <h3 class="text-lg font-bold text-stone-900">👤 역할 카드 선택 및 커스텀</h3>
+                    <p class="text-xs text-stone-500 mt-1">사회의 다양한 조건 중 하나를 고르거나 직접 세팅해 보세요.</p>
+                </div>
+                <button onclick="closeRoleModal()" class="text-stone-400 hover:text-stone-600 font-bold text-2xl">×</button>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="p-6 overflow-y-auto space-y-6 flex-grow">
+                <!-- Preset Grid -->
+                <div>
+                    <span class="text-xs font-bold text-amber-600 uppercase tracking-wider block mb-3">🏷️ 다양한 사회적 환경 카드 프리셋 (12종)</span>
+                    <div id="preset-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <!-- Presets generated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Custom Creator -->
+                <div class="border-t border-stone-150 pt-5">
+                    <span class="text-xs font-bold text-rose-600 uppercase tracking-wider block mb-3">🎨 나만의 고유한 역할 카드 만들기</span>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-rose-50/50 p-4 rounded-2xl border border-rose-100">
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold text-stone-600 mb-1">역할 명칭</label>
+                                <input type="text" id="custom-role-title" placeholder="예: 무직 청년, 고독한 연구원 등" class="w-full p-2.5 rounded-xl border border-stone-200 text-xs focus:ring-2 focus:ring-rose-400 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-stone-600 mb-1">대표 이모지</label>
+                                <div class="grid grid-cols-6 gap-2" id="emoji-selector">
+                                    <span onclick="selectCustomEmoji('👩‍🎓')" class="emoji-opt p-1.5 text-center bg-white border border-stone-200 rounded-lg cursor-pointer hover:bg-stone-100 text-lg">👩‍🎓</span>
+                                    <span onclick="selectCustomEmoji('👨‍⚕️')" class="emoji-opt p-1.5 text-center bg-white border border-stone-200 rounded-lg cursor-pointer hover:bg-stone-100 text-lg">👨‍⚕️</span>
+                                    <span onclick="selectCustomEmoji('👵')" class="emoji-opt p-1.5 text-center bg-white border border-stone-200 rounded-lg cursor-pointer hover:bg-stone-100 text-lg">👵</span>
+                                    <span onclick="selectCustomEmoji('👷')" class="emoji-opt p-1.5 text-center bg-white border border-stone-200 rounded-lg cursor-pointer hover:bg-stone-100 text-lg">👷</span>
+                                    <span onclick="selectCustomEmoji('🧑‍🎨')" class="emoji-opt p-1.5 text-center bg-white border border-stone-200 rounded-lg cursor-pointer hover:bg-stone-100 text-lg">🧑‍🎨</span>
+                                    <span onclick="selectCustomEmoji('🦸')" class="emoji-opt p-1.5 text-center bg-white border border-stone-200 rounded-lg cursor-pointer hover:bg-stone-100 text-lg">🦸</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold text-stone-600 mb-1">처지 및 상황 설명</label>
+                                <textarea id="custom-role-desc" placeholder="사회에서 어떤 장벽이나 기회를 누리고 있는지 적어주세요." class="w-full p-2.5 rounded-xl border border-stone-200 text-xs h-20 resize-none focus:ring-2 focus:ring-rose-400 focus:outline-none"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-stone-600 mb-1">사회적 자산 등급</label>
+                                <select id="custom-role-level" class="w-full p-2.5 rounded-xl border border-stone-200 text-xs focus:ring-2 focus:ring-rose-400 focus:outline-none bg-white font-semibold text-stone-800">
+                                    <option value="👑 상위 0.1% 대부호">👑 상위 0.1% 대부호</option>
+                                    <option value="💎 상위 1% 고소득층">💎 상위 1% 고소득층</option>
+                                    <option value="💼 일반 중산층 (고위험)">💼 일반 중산층(고위험)</option>
+                                    <option value="💼 안정적 중산층">💼 안정적 중산층</option>
+                                    <option value="💼 성실한 근로소득층">💼 성실한 근로소득층</option>
+                                    <option value="⚠️ 서민 / 소상공인">⚠️ 서민/소상공인</option>
+                                    <option value="⚠️ 취약 근로계층">⚠️ 취약 근로계층</option>
+                                    <option value="⚠️ 취약 서민층">⚠️ 취약 서민층</option>
+                                    <option value="⚠️ 사회적 약자 / 소수자">⚠️ 사회적 약자/소수자</option>
+                                    <option value="⚠️ 사회 취약계층">⚠️ 사회 취약계층</option>
+                                    <option value="⚠️ 최하위 최소 수혜자">⚠️ 최하위 최소 수혜자</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-stone-100 bg-stone-50 flex gap-3">
+                <button onclick="applyCustomRole()" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-xl text-sm transition-all shadow-md">
+                    확인 및 카드 적용하기
+                </button>
+                <button onclick="closeRoleModal()" class="flex-1 bg-stone-200 hover:bg-stone-300 text-stone-700 font-bold py-3 rounded-xl text-sm transition-all">
+                    취소
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Role Detail View Modal -->
+    <div id="detail-modal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-stone-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-indigo-100 transform scale-95 transition-all relative overflow-hidden">
+            <!-- Decorative pastel accent -->
+            <div class="absolute -right-16 -top-16 w-36 h-36 bg-indigo-50 rounded-full opacity-60"></div>
+            
+            <div class="flex items-center gap-4 mb-6 relative z-10">
+                <span id="detail-emoji" class="text-5xl p-2 bg-indigo-50 border border-indigo-100 rounded-2xl shadow-sm select-none">🔮</span>
+                <div>
+                    <span id="detail-member-name" class="text-xs font-bold text-indigo-600 block bg-indigo-50 px-2 py-0.5 rounded-md w-max">홍길동 학생의 운명</span>
+                    <h3 id="detail-role-title" class="text-2xl font-black text-stone-900 tracking-tight mt-1">대기업 가문의 자산 상속인</h3>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-6 relative z-10">
+                <div class="bg-indigo-50/50 border border-indigo-100 p-4 rounded-2xl">
+                    <span class="text-xs text-indigo-600 font-bold block mb-1">💼 가상 사회 신분 정보</span>
+                    <span id="detail-role-level" class="text-sm font-extrabold text-indigo-950">상위 0.1% 대부호</span>
+                </div>
+                <div class="bg-amber-50 border border-amber-100 p-4 rounded-2xl text-center">
+                    <span class="text-xs text-amber-700 font-bold block mb-1">🍰 실질 케이크 분배 몫</span>
+                    <span id="detail-cake-pct" class="text-xl font-black text-amber-900">70%</span>
+                </div>
+            </div>
+
+            <div class="bg-stone-50 border border-stone-150 p-6 rounded-2xl mb-6 relative z-10 shadow-inner">
+                <span class="text-xs font-bold text-stone-400 block mb-2 uppercase tracking-wider">📜 사회적 조건에 관한 구체적 상황</span>
+                <p id="detail-role-desc" class="text-base text-stone-700 leading-relaxed font-medium">
+                    여기에 상세한 내용이 들어갑니다. 큰 글씨로 또렷하게 표시됩니다.
+                </p>
+            </div>
+
+            <button onclick="closeDetailModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl transition-all shadow-md text-base relative z-10">
+                알겠습니다 (닫기)
+            </button>
+        </div>
+    </div>
+
+    <!-- Footer of Page -->
+    <footer class="bg-stone-900 text-stone-400 text-xs py-6 px-6 border-t border-stone-800 mt-12 text-center">
+        <p>© 2026 롤스의 분배 정의론 교실 협동형 시뮬레이터. "공정으로서의 정의 - 무지의 베일 속에서만 우리는 진정한 동행을 결정할 수 있습니다."</p>
+    </footer>
+
+    <script>
+        let audioCtx = null;
+        function playTone(freq, duration, type = "sine") {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                console.log("Audio not initiated or supported yet.");
+            }
+        }
+
+        function triggerSuccessSound() {
+            playTone(523.25, 0.1); // C5
+            setTimeout(() => playTone(659.25, 0.1), 100); // E5
+            setTimeout(() => playTone(783.99, 0.2), 200); // G5
+        }
+
+        function triggerFailSound() {
+            playTone(392.00, 0.15); // G4
+            setTimeout(() => playTone(311.13, 0.3), 150); // Eb4
+        }
+
+        function triggerShuffleSound() {
+            let delay = 0;
+            for(let i=0; i<8; i++) {
+                setTimeout(() => {
+                    playTone(300 + Math.random() * 600, 0.05, "triangle");
+                }, delay);
+                delay += 75;
+            }
+        }
+
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        const ROLE_PRESETS = [
+            {
+                id: 'p1',
+                title: '대기업 가문의 자산 상속인',
+                emoji: '👑',
+                desc: '막대한 부를 세습한 상위 0.1% 상속자. 실패해도 언제나 다시 일어설 튼튼한 금전적 안전망을 가졌습니다.',
+                level: '👑 상위 0.1% 대부호'
+            },
+            {
+                id: 'p2',
+                title: '고소득 전문 정형외과 의사',
+                emoji: '👨‍⚕️',
+                desc: '높고 안정적인 고소득 전문직 종사자. 사회적 명망과 풍족한 삶의 여유를 누리고 있습니다.',
+                level: '💎 상위 1% 고소득층'
+            },
+            {
+                id: 'p3',
+                title: '테크 스타트업 청년 CEO',
+                emoji: '🚀',
+                desc: '번뜩이는 재능으로 투자를 유치한 창업가. 성공하면 큰 부를 얻지만, 실패 시 막대한 빚을 떠안을 위험이 공존합니다.',
+                level: '💼 일반 중산층 (고위험)'
+            },
+            {
+                id: 'p4',
+                title: '평범한 무난한 회사원',
+                emoji: '💼',
+                desc: '매달 안정적인 급여를 받는 직장인. 집 대출금을 성실히 갚고 있으며, 당장 굶주릴 걱정은 없습니다.',
+                level: '💼 안정적 중산층'
+            },
+            {
+                id: 'p5',
+                title: '정년 보장 초등학교 교사',
+                emoji: '🏫',
+                desc: '높은 품격과 공공 책임감을 가지고 일하는 공무원. 큰 부자는 아니지만 정년 보장과 노후 걱정이 적은 안전망이 존재합니다.',
+                level: '💼 안정적 중산층'
+            },
+            {
+                id: 'p6',
+                title: '제철소 정규 용접 마스터',
+                emoji: '🔧',
+                desc: '현장의 리스크를 극복하며 가치를 만드는 전문 기술자. 기술 경쟁력이 높지만 신체 질환 위험이 상존합니다.',
+                level: '💼 성실한 근로소득층'
+            },
+            {
+                id: 'p7',
+                title: '동네 분식 골목 소상공인',
+                emoji: '🍳',
+                desc: '매달 비싼 상가 월세와 원재료 가격 급등 때문에 한 달 실수익이 불투명하며, 경기 불황에 직접적인 영향을 받습니다.',
+                level: '⚠️ 서민 / 소상공인'
+            },
+            {
+                id: 'p8',
+                title: '프리랜서 배달 라이더',
+                emoji: '🛵',
+                desc: '주말 및 악천후 시에도 주행하는 긱워커. 사고나 부상 시 유급 휴가나 산재 지원을 원활하게 얻기 어렵습니다.',
+                level: '⚠️ 취약 근로계층'
+            },
+            {
+                id: 'p9',
+                title: '야간 아르바이트 대학생',
+                emoji: '👩‍🎓',
+                desc: '기숙사비와 등록금을 충당하기 위해 주말 및 야간 근무를 병행하느라 피로와 학업 압박에 고전합니다.',
+                level: '⚠️ 취약 서민층'
+            },
+            {
+                id: 'p10',
+                title: '시각장애를 가진 취업 준비생',
+                emoji: '♿',
+                desc: '뛰어난 직무 능력과 열정을 가지고 있으나, 채용 시장의 은근한 차별과 대중교통 인프라의 한계로 불리한 출발선에 서 있습니다.',
+                level: '⚠️ 사회적 약자 / 소수자'
+            },
+            {
+                id: 'p11',
+                title: '친환경 작물 농가 청년',
+                emoji: '🧑‍🌾',
+                desc: '도시 직장을 정리하고 농촌에서 꿈을 키우고 있으나, 기후 이상이나 태풍 등으로 연간 매출 변동이 매우 극단적입니다.',
+                level: '⚠️ 사회 취약계층'
+            },
+            {
+                id: 'p12',
+                title: '복지 연금 생활 독거 어르신',
+                emoji: '👵',
+                desc: '노화와 건강 쇠약으로 자체 자립 근로 소득 창출이 불가능하며, 기초연금과 국가의 복지 지원책에 온전히 유지하고 있습니다.',
+                level: '⚠️ 최하위 최소 수혜자'
+            }
+        ];
+
+        const state = {
+            step: 0,
+            memberCount: 4,
+            members: [
+                { name: '김민준', role: { ...ROLE_PRESETS[0] } },
+                { name: '이지원', role: { ...ROLE_PRESETS[1] } },
+                { name: '박태현', role: { ...ROLE_PRESETS[3] } },
+                { name: '최아름', role: { ...ROLE_PRESETS[6] } },
+                { name: '윤지후', role: { ...ROLE_PRESETS[11] } } // For 5 person mode
+            ],
+            angles: [0, 90, 180, 270], 
+            assignments: {}, 
+            shuffledAssignments: {}, 
+            shuffledRoles: {}, 
+            revealedSlices: [], 
+            activeCustomizingMemberIndex: null,
+            selectedCustomEmoji: '👩‍🎓',
+            cutterIndex: 0, 
+            anglesStep4: [0, 90, 180, 270],
+            stage4ShuffledAssignments: {}, // slice Index -> member Index
+            stage4ShuffledPercentages: {}, // member Index -> slice percentage
+            stage4ShuffledRoles: {},
+            stage4CakeSize: 100,
+            stage4FinalMatchedData: [] // Final Step 4 results object array
+        };
+
+        function getRankFromLevel(levelText) {
+            if (!levelText) return 11;
+            const cleaned = levelText.trim();
+            if (cleaned.includes("대부호")) return 1;
+            if (cleaned.includes("고소득층")) return 2;
+            if (cleaned.includes("일반 중산층")) return 3;
+            if (cleaned.includes("안정적 중산층")) return 4;
+            if (cleaned.includes("성실한 근로소득층")) return 5;
+            if (cleaned.includes("소상공인") || cleaned.includes("분식 골목")) return 6;
+            if (cleaned.includes("취약 근로계층")) return 7;
+            if (cleaned.includes("취약 서민층")) return 8;
+            if (cleaned.includes("사회적 약자")) return 9;
+            if (cleaned.includes("사회 취약계층")) return 10;
+            if (cleaned.includes("최소 수혜자") || cleaned.includes("최하위")) return 11;
+            return 11;
+        }
+
+        function getGroupFromLevel(levelText) {
+            if (!levelText) return 3;
+            const cleaned = levelText.trim();
+            if (cleaned.includes("대부호") || cleaned.includes("고소득층")) return 1;
+            if (cleaned.includes("중산층")) return 2;
+            if (cleaned.includes("근로소득") || cleaned.includes("소상공인") || cleaned.includes("근로계층") || cleaned.includes("서민")) return 3;
+            if (cleaned.includes("약자") || cleaned.includes("취약계층") || cleaned.includes("최소 수혜자") || cleaned.includes("최하위")) return 4;
+            return 3;
+        }
+
+        window.onload = function() {
+            setMemberCount(4);
+            renderPresetGrid();
+        };
+
+        function openModal(title, msg, emoji = "🔔") {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = msg;
+            document.getElementById('modal-emoji').innerText = emoji;
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        function updateStepProgress(activeStep) {
+            state.step = activeStep;
+            
+            const cutterBanner = document.getElementById('cutter-banner');
+            if (cutterBanner) {
+                cutterBanner.style.display = (activeStep === 1) ? 'block' : 'none';
+            }
+
+            const step4VeilExplanation = document.getElementById('step4-veil-explanation');
+            if (step4VeilExplanation) {
+                step4VeilExplanation.style.display = (activeStep === 4) ? 'block' : 'none';
+            }
+
+            const step4LiveMaximin = document.getElementById('step4-live-maximin-card');
+            if (step4LiveMaximin) {
+                step4LiveMaximin.style.display = (activeStep === 4) ? 'block' : 'none';
+            }
+
+            const step4CakeSizeCard = document.getElementById('step4-live-cakesize-card');
+            if (step4CakeSizeCard) {
+                step4CakeSizeCard.style.display = (activeStep === 4) ? 'block' : 'none';
+            }
+            
+            for (let i = 0; i <= 4; i++) {
+                const badge = document.getElementById(`step-badge-${i}`);
+                if (!badge) continue;
+                if (i === activeStep) {
+                    badge.className = "px-2.5 py-1.5 rounded-full bg-amber-600 text-white shadow-sm font-bold transition-all shrink-0";
+                } else if (i < activeStep) {
+                    badge.className = "px-2.5 py-1.5 rounded-full bg-emerald-600 text-white font-medium transition-all shrink-0";
+                } else {
+                    badge.className = "px-2.5 py-1.5 rounded-full bg-stone-200 text-stone-600 font-medium transition-all shrink-0";
+                }
+            }
+
+            const step2Badge = document.getElementById("step-badge-2");
+            if (step2Badge) {
+                if (activeStep === 2) {
+                    step2Badge.className = "px-2.5 py-1.5 rounded-full bg-amber-600 text-white shadow-sm font-bold transition-all shrink-0";
+                } else if (activeStep > 2) {
+                    step2Badge.className = "px-2.5 py-1.5 rounded-full bg-emerald-600 text-white font-medium transition-all shrink-0";
+                } else {
+                    step2Badge.className = "px-2.5 py-1.5 rounded-full bg-stone-200 text-stone-600 font-medium transition-all shrink-0";
+                }
+                step2Badge.innerText = "2. 역할 교환";
+            }
+
+            const step3Badge = document.getElementById("step-badge-3");
+            if (step3Badge) {
+                if (activeStep === 3) {
+                    step3Badge.className = "px-2.5 py-1.5 rounded-full bg-amber-600 text-white shadow-sm font-bold transition-all shrink-0";
+                } else if (activeStep > 3) {
+                    step3Badge.className = "px-2.5 py-1.5 rounded-full bg-emerald-600 text-white font-medium transition-all shrink-0";
+                } else {
+                    step3Badge.className = "px-2.5 py-1.5 rounded-full bg-stone-200 text-stone-600 font-medium transition-all shrink-0";
+                }
+                step3Badge.innerText = "3. 역할교환을 통한 분배와 성찰";
+            }
+
+            document.getElementById('step-0-visual').style.display = (activeStep === 0) ? 'flex' : 'none';
+            document.getElementById('cake-slicing-visual').style.display = (activeStep === 1 || activeStep === 4) ? 'flex' : 'none';
+            document.getElementById('veil-active-visual').style.display = (activeStep === 2) ? 'flex' : 'none';
+            document.getElementById('distribution-visual').style.display = (activeStep === 3) ? 'flex' : 'none';
+
+            document.getElementById('controls-step-0').style.display = (activeStep === 0) ? 'block' : 'none';
+            document.getElementById('controls-step-1').style.display = (activeStep === 1) ? 'block' : 'none';
+            document.getElementById('controls-step-2').style.display = (activeStep === 2) ? 'block' : 'none';
+            document.getElementById('controls-step-3').style.display = (activeStep === 3) ? 'block' : 'none';
+            document.getElementById('controls-step-4').style.display = (activeStep === 4) ? 'block' : 'none';
+            document.getElementById('controls-step-4-result').style.display = 'none';
+
+            const labelEl = document.getElementById('current-step-label');
+            const descEl = document.getElementById('step-long-description');
+            
+            if (activeStep === 0) {
+                labelEl.innerText = "0. 모둠원 및 역할 등록";
+                descEl.innerText = "모둠원들의 이름을 설정하고 각자 가상 사회에서 부여받을 역할 카드를 골라보세요. 이 조건은 무지의 베일을 타기 전의 초기 스펙입니다.";
+            } else if (activeStep === 1) {
+                labelEl.innerText = "1. 자르기 담당자의 이기적 기득권 분할";
+                descEl.innerText = "무작위 선출된 자르기 담당자는 탐욕 본능을 한껏 발휘해 한 조각은 극단적으로 크게, 나머지는 극소로 잘라 자신에게 가장 큰 조각을 부여해 보세요.";
+                setupAnglesForCutting();
+                drawCakeSlicing();
+            } else if (activeStep === 2) {
+                labelEl.innerText = "2. 무작위 역할 교환";
+                descEl.innerText = "모둠 구성원들이 설정한 역할 카드가 서로 무작위로 교차 교환됩니다. 타인의 처지가 되어보는 역지사지를 통해, 이기적이고 부정의한 분배가 누군가에게 어떤 비극적인 영향을 미치는지 실감해 보세요.";
+            } else if (activeStep === 3) {
+                labelEl.innerText = "3. 역할교환을 통한 분배와 성찰";
+                descEl.innerText = "자신의 신분과 획득할 조각의 크기를 모르는 상태에서 임시 케이크 조각 카드를 터치해 골라보세요. 내가 어떤 처지에서 어떤 몫의 케이크를 얻게 되는지 운명이 전격 공개됩니다.";
+                setupDistributionStep();
+            } else if (activeStep === 4) {
+                labelEl.innerText = "4. 최소 극대화(Maximin) 합의 자르기";
+                descEl.innerText = "모둠원이 합심하여 누구나 불리해져도 최적의 삶을 지킬 수 있는 케이크 구조를 재단해 보세요. 여전히 분배는 랜덤인 무지의 베일 상황입니다.";
+                setupAnglesForStep4();
+                drawCakeSlicing();
+            }
+        }
+
+        function setMemberCount(count) {
+            state.memberCount = count;
+            playTone(440, 0.1);
+            
+            const btn4 = document.getElementById('btn-count-4');
+            const btn5 = document.getElementById('btn-count-5');
+            
+            if (count === 4) {
+                btn4.className = "flex-1 py-3 px-4 rounded-xl font-bold border-2 border-amber-600 bg-amber-50 text-amber-700 transition-all shadow-sm";
+                btn5.className = "flex-1 py-3 px-4 rounded-xl font-bold border-2 border-stone-200 bg-white text-stone-600 hover:border-stone-300 transition-all";
+            } else {
+                btn5.className = "flex-1 py-3 px-4 rounded-xl font-bold border-2 border-amber-600 bg-amber-50 text-amber-700 transition-all shadow-sm";
+                btn4.className = "flex-1 py-3 px-4 rounded-xl font-bold border-2 border-stone-200 bg-white text-stone-600 hover:border-stone-300 transition-all";
+            }
+
+            renderMemberListInputs();
+        }
+
+        function renderMemberListInputs() {
+            const listContainer = document.getElementById('members-input-list');
+            listContainer.innerHTML = '';
+
+            for (let i = 0; i < state.memberCount; i++) {
+                const member = state.members[i];
+                const cardHTML = `
+                    <div class="flex flex-col md:flex-row items-center gap-3 p-3 bg-stone-50 rounded-2xl border border-stone-150 shadow-sm w-full">
+                        <div class="w-full md:w-1/3 flex flex-col">
+                            <span class="text-[10px] text-amber-600 font-bold mb-1">모둠원 ${i + 1} 이름</span>
+                            <input type="text" id="member-name-${i}" value="${member.name}" onchange="updateMemberName(${i}, this.value)" class="p-2 border border-stone-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white">
+                        </div>
+                        <div class="w-full md:w-2/3 flex items-center justify-between gap-3 border-t md:border-t-0 pt-2 md:pt-0 border-stone-200">
+                            <div class="flex items-center gap-2">
+                                <span class="text-2xl p-1 bg-white rounded-lg border border-stone-200 shadow-sm select-none" id="member-emoji-view-${i}">${member.role.emoji}</span>
+                                <div class="text-left">
+                                    <span class="text-xs font-bold text-stone-700 block" id="member-role-title-view-${i}">${member.role.title}</span>
+                                    <span class="text-[9px] text-stone-400 block truncate max-w-[150px]" id="member-role-desc-view-${i}">${member.role.desc}</span>
+                                </div>
+                            </div>
+                            <button onclick="openRoleCustomizer(${i})" class="bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] py-1.5 px-2.5 rounded-xl transition-all shadow-sm shrink-0">
+                                🛠️ 카드설정
+                            </button>
+                        </div>
+                    </div>
+                `;
+                listContainer.insertAdjacentHTML('beforeend', cardHTML);
+            }
+        }
+
+        function updateMemberName(index, val) {
+            state.members[index].name = val.trim() || `모둠원 ${index+1}`;
+        }
+
+        function renderPresetGrid() {
+            const container = document.getElementById('preset-grid');
+            container.innerHTML = '';
+            
+            ROLE_PRESETS.forEach((preset, idx) => {
+                const card = `
+                    <div onclick="selectPreset(${idx})" id="preset-card-${idx}" class="preset-card p-2.5 bg-white border border-stone-200 hover:border-amber-500 rounded-xl cursor-pointer transition-all shadow-sm hover:shadow-md flex gap-2 text-left">
+                        <span class="text-2xl shrink-0 p-1.5 bg-stone-50 border border-stone-100 rounded-lg self-center">${preset.emoji}</span>
+                        <div>
+                            <span class="text-xs font-extrabold text-stone-800 block">${preset.title}</span>
+                            <span class="text-[9px] text-amber-600 font-semibold block leading-none mb-1">${preset.level}</span>
+                            <p class="text-[9px] text-stone-500 leading-normal line-clamp-1">${preset.desc}</p>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', card);
+            });
+        }
+
+        function openRoleCustomizer(memberIdx) {
+            state.activeCustomizingMemberIndex = memberIdx;
+            const currentRole = state.members[memberIdx].role;
+
+            document.getElementById('custom-role-title').value = currentRole.title;
+            document.getElementById('custom-role-desc').value = currentRole.desc;
+            document.getElementById('custom-role-level').value = currentRole.level;
+            
+            selectCustomEmoji(currentRole.emoji);
+
+            document.querySelectorAll('.preset-card').forEach(card => {
+                card.classList.remove('border-amber-600', 'bg-amber-50/50', 'ring-2', 'ring-amber-300');
+            });
+
+            document.getElementById('role-modal').classList.remove('hidden');
+            playTone(600, 0.05);
+        }
+
+        function closeRoleModal() {
+            document.getElementById('role-modal').classList.add('hidden');
+        }
+
+        function selectCustomEmoji(emoji) {
+            state.selectedCustomEmoji = emoji;
+            const options = document.querySelectorAll('.emoji-opt');
+            options.forEach(opt => {
+                if (opt.innerText === emoji) {
+                    opt.classList.add('border-amber-600', 'bg-amber-50', 'ring-2', 'ring-amber-300');
+                } else {
+                    opt.classList.remove('border-amber-600', 'bg-amber-50', 'ring-2', 'ring-amber-300');
+                }
+            });
+        }
+
+        function selectPreset(idx) {
+            const preset = ROLE_PRESETS[idx];
+            document.getElementById('custom-role-title').value = preset.title;
+            document.getElementById('custom-role-desc').value = preset.desc;
+            document.getElementById('custom-role-level').value = preset.level;
+            selectCustomEmoji(preset.emoji);
+            
+            document.querySelectorAll('.preset-card').forEach((card, i) => {
+                if (i === idx) {
+                    card.classList.add('border-amber-600', 'bg-amber-50/50', 'ring-2', 'ring-amber-300');
+                } else {
+                    card.classList.remove('border-amber-600', 'bg-amber-50/50', 'ring-2', 'ring-amber-300');
+                }
+            });
+            
+            playTone(500, 0.05);
+        }
+
+        function applyCustomRole() {
+            const idx = state.activeCustomizingMemberIndex;
+            if (idx === null) return;
+
+            const newTitle = document.getElementById('custom-role-title').value.trim() || '지정 시민';
+            const newDesc = document.getElementById('custom-role-desc').value.trim() || '사회적 가치를 지닌 존엄한 가상의 시민입니다.';
+            const newLevel = document.getElementById('custom-role-level').value;
+
+            state.members[idx].role = {
+                id: 'custom',
+                title: newTitle,
+                emoji: state.selectedCustomEmoji,
+                desc: newDesc,
+                level: newLevel
+            };
+
+            const emojiView = document.getElementById(`member-emoji-view-${idx}`);
+            const titleView = document.getElementById(`member-role-title-view-${idx}`);
+            const descView = document.getElementById(`member-role-desc-view-${idx}`);
+            
+            if (emojiView) emojiView.innerText = state.selectedCustomEmoji;
+            if (titleView) titleView.innerText = newTitle;
+            if (descView) descView.innerText = newDesc;
+
+            closeRoleModal();
+            triggerSuccessSound();
+        }
+
+        function goToStep1() {
+            for(let i=0; i<state.memberCount; i++) {
+                const inputName = document.getElementById(`member-name-${i}`).value.trim();
+                if(!inputName) {
+                    openModal("💡 이름 입력 필요", `모둠원 ${i+1}의 이름을 입력한 후에 작동을 실행해주세요!`, "✍️");
+                    triggerFailSound();
+                    return;
+                }
+                state.members[i].name = inputName;
+            }
+
+            state.cutterIndex = Math.floor(Math.random() * state.memberCount);
+            const cutter = state.members[state.cutterIndex];
+            
+            document.getElementById('cutter-name-display').innerText = cutter.name + ` (${cutter.role.title})`;
+            state.assignments = {};
+            
+            updateStepProgress(1);
+            triggerSuccessSound();
+            scrollToTop();
+        }
+
+        function setupAnglesForCutting() {
+            const count = state.memberCount;
+            if (count === 4) {
+                state.angles = [0, 90, 180, 270];
+            } else {
+                state.angles = [0, 72, 144, 216, 288];
+            }
+        }
+
+        function setupAnglesForStep4() {
+            const count = state.memberCount;
+            if (count === 4) {
+                state.anglesStep4 = [0, 90, 180, 270];
+            } else {
+                state.anglesStep4 = [0, 72, 144, 216, 288];
+            }
+        }
+
+        function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
+            const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+            return {
+                x: centerX + (radius * Math.cos(angleInRadians)),
+                y: centerY + (radius * Math.sin(angleInRadians))
+            };
+        }
+
+        function generateStep4Roles() {
+            const count = state.memberCount;
+            const vulnerablePresets = ROLE_PRESETS.filter(p => 
+                p.level.includes("사회적 약자") || 
+                p.level.includes("사회 취약계층") || 
+                p.level.includes("최소 수혜자") || 
+                p.level.includes("최하위")
+            ); 
+            
+            const otherPresets = ROLE_PRESETS.filter(p => !vulnerablePresets.includes(p));
+
+            for (let i = vulnerablePresets.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [vulnerablePresets[i], vulnerablePresets[j]] = [vulnerablePresets[j], vulnerablePresets[i]];
+            }
+
+            for (let i = otherPresets.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [otherPresets[i], otherPresets[j]] = [otherPresets[j], otherPresets[i]];
+            }
+
+            const chosen = [JSON.parse(JSON.stringify(vulnerablePresets[0]))];
+            for (let i = 0; i < count - 1; i++) {
+                chosen.push(JSON.parse(JSON.stringify(otherPresets[i])));
+            }
+
+            for (let i = chosen.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [chosen[i], chosen[j]] = [chosen[j], chosen[i]];
+            }
+
+            state.stage4ShuffledRoles = {};
+            for (let i = 0; i < count; i++) {
+                state.stage4ShuffledRoles[i] = chosen[i];
+            }
+        }
+
+        function performStep4Matching() {
+            const count = state.memberCount;
+            const activeAngles = state.anglesStep4;
+            
+            let percentages = [];
+            for (let i = 0; i < count; i++) {
+                const startAngle = activeAngles[i];
+                const endAngle = (i === count - 1) ? (activeAngles[0] + 360) : activeAngles[i + 1];
+                const pct = Math.round(((endAngle - startAngle) / 360) * 100);
+                percentages.push({ index: i, pct: pct });
+            }
+            
+            let totalPct = percentages.reduce((sum, item) => sum + item.pct, 0);
+            if (totalPct !== 100) {
+                percentages.sort((a, b) => b.pct - a.pct);
+                percentages[0].pct += (100 - totalPct);
+            }
+
+            let sortedPercentages = [...percentages].sort((a, b) => b.pct - a.pct);
+
+            let activeMembers = [];
+            for (let i = 0; i < count; i++) {
+                const actualRole = state.stage4ShuffledRoles[i] || state.shuffledRoles[i] || state.members[i].role;
+                activeMembers.push({
+                    index: i,
+                    name: state.members[i].name,
+                    role: actualRole,
+                    rank: getRankFromLevel(actualRole.level)
+                });
+            }
+            activeMembers.sort((a, b) => {
+                if (a.rank !== b.rank) return a.rank - b.rank;
+                return a.index - b.index;
+            });
+
+            let baseline = 100 / count;
+            
+            state.stage4ShuffledAssignments = {}; 
+            state.stage4ShuffledPercentages = {}; 
+
+            for (let i = 0; i < count; i++) {
+                let member = activeMembers[i];
+                let slicePctObj = sortedPercentages[i];
+                
+                state.stage4ShuffledAssignments[slicePctObj.index] = member.index;
+                state.stage4ShuffledPercentages[member.index] = slicePctObj.pct;
+            }
+
+            let totalContribution = 0;
+            for (let i = 0; i < count; i++) {
+                let member = activeMembers[i];
+                let pct = state.stage4ShuffledPercentages[member.index];
+                let diff = pct - baseline;
+                let group = getGroupFromLevel(member.role.level);
+                let contribution = 0;
+
+                if (group === 1) {
+                    contribution = diff * 5;
+                } else if (group === 2) {
+                    contribution = diff * 2;
+                } else if (group === 3) {
+                    contribution = diff > 0 ? (diff * 1) : (diff * 3);
+                } else if (group === 4) {
+                    contribution = diff > 0 ? 0 : (diff * 4);
+                }
+                totalContribution += contribution;
+            }
+
+            let cakeSize = 100 + (totalContribution * 3);
+            cakeSize = Math.max(50, Math.min(350, cakeSize));
+            state.stage4CakeSize = Math.round(cakeSize);
+        }
+
+        function drawCakeSlicing() {
+            const activeAngles = (state.step === 4) ? state.anglesStep4 : state.angles;
+            const count = state.memberCount;
+            
+            const slicesGroup = document.getElementById('slices-group');
+            const handlesGroup = document.getElementById('handles-group');
+            if(!slicesGroup || !handlesGroup) return;
+
+            // Clear only dynamic layers to increase GPU rendering speeds
+            slicesGroup.innerHTML = '';
+            handlesGroup.innerHTML = '';
+
+            if (state.step === 4) {
+                performStep4Matching();
+            }
+
+            const cx = 200;
+            const cy = 200;
+            const r = 145; 
+
+            const pastelGradients = [
+                'url(#pastelVanilla)',
+                'url(#pastelStrawberry)',
+                'url(#pastelMint)',
+                'url(#pastelLavender)',
+                'url(#pastelPeach)'
+            ];
+
+            // Render Slices
+            for (let i = 0; i < count; i++) {
+                const startAngle = activeAngles[i];
+                const endAngle = (i === count - 1) ? (activeAngles[0] + 360) : activeAngles[i + 1];
+                const percentage = Math.round(((endAngle - startAngle) / 360) * 100);
+
+                const midAngle = startAngle + (endAngle - startAngle) / 2;
+                const offsetDistance = 10; 
+                const shiftX = Math.cos((midAngle - 90) * Math.PI / 180) * offsetDistance;
+                const shiftY = Math.sin((midAngle - 90) * Math.PI / 180) * offsetDistance;
+
+                const startPt = polarToCartesian(cx + shiftX, cy + shiftY, r, startAngle);
+                const endPt = polarToCartesian(cx + shiftX, cy + shiftY, r, endAngle);
+                
+                const largeArcFlag = (endAngle - startAngle) <= 180 ? "0" : "1";
+
+                const pathD = `
+                    M ${cx + shiftX} ${cy + shiftY}
+                    L ${startPt.x} ${startPt.y}
+                    A ${r} ${r} 0 ${largeArcFlag} 1 ${endPt.x} ${endPt.y}
+                    Z
+                `;
+
+                const sliceGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                sliceGroup.setAttribute("class", "hover:brightness-[0.98] transition-all cursor-pointer");
+                sliceGroup.onclick = () => onSliceClicked(i);
+
+                const slicePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                slicePath.setAttribute("d", pathD);
+                slicePath.setAttribute("fill", pastelGradients[i % pastelGradients.length]);
+                slicePath.setAttribute("stroke", "#ffffff");
+                slicePath.setAttribute("stroke-width", "3");
+                slicePath.setAttribute("filter", "drop-shadow(1px 3px 5px rgba(0,0,0,0.05))");
+                sliceGroup.appendChild(slicePath);
+
+                const creamPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                creamPath.setAttribute("d", `M ${startPt.x} ${startPt.y} A ${r} ${r} 0 ${largeArcFlag} 1 ${endPt.x} ${endPt.y}`);
+                creamPath.setAttribute("fill", "none");
+                creamPath.setAttribute("stroke", "#ffffff");
+                creamPath.setAttribute("stroke-width", "8");
+                creamPath.setAttribute("stroke-dasharray", "1 12");
+                creamPath.setAttribute("stroke-linecap", "round");
+                sliceGroup.appendChild(creamPath);
+
+                const toppingPos = polarToCartesian(cx + shiftX, cy + shiftY, r * 0.62, midAngle);
+                const toppingText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                toppingText.setAttribute("x", toppingPos.x);
+                toppingText.setAttribute("y", toppingPos.y);
+                toppingText.setAttribute("font-size", "22");
+                toppingText.setAttribute("text-anchor", "middle");
+                toppingText.setAttribute("dominant-baseline", "middle");
+                toppingText.textContent = (i % 2 === 0) ? "🍒" : "🍓";
+                sliceGroup.appendChild(toppingText);
+
+                const labelPos = polarToCartesian(cx + shiftX, cy + shiftY, r * 0.85, midAngle);
+                
+                const labelBg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                labelBg.setAttribute("x", labelPos.x - 30);
+                labelBg.setAttribute("y", labelPos.y - 11);
+                labelBg.setAttribute("width", "60");
+                labelBg.setAttribute("height", "22");
+                labelBg.setAttribute("rx", "11");
+                labelBg.setAttribute("fill", "#292524");
+                labelBg.setAttribute("stroke", "#ffffff");
+                labelBg.setAttribute("stroke-width", "1");
+                sliceGroup.appendChild(labelBg);
+
+                const labelText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                labelText.setAttribute("x", labelPos.x);
+                labelText.setAttribute("y", labelPos.y + 1);
+                labelText.setAttribute("font-size", "9");
+                labelText.setAttribute("font-weight", "bold");
+                labelText.setAttribute("fill", "#ffffff");
+                labelText.setAttribute("text-anchor", "middle");
+                labelText.setAttribute("dominant-baseline", "middle");
+                
+                if (state.step === 4) {
+                    labelText.textContent = `조각 ${i+1}`;
+                } else {
+                    const assignedIdx = state.assignments[i];
+                    labelText.textContent = (assignedIdx !== undefined) ? state.members[assignedIdx].name : `조각 ${i+1}`;
+                }
+                sliceGroup.appendChild(labelText);
+
+                const percentPos = polarToCartesian(cx + shiftX, cy + shiftY, r * 0.35, midAngle);
+                const percentText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                percentText.setAttribute("x", percentPos.x);
+                percentText.setAttribute("text-anchor", "middle");
+
+                if (state.step === 4) {
+                    percentText.setAttribute("y", percentPos.y - 4);
+                    percentText.setAttribute("font-size", "13");
+                    percentText.setAttribute("font-weight", "900");
+                    percentText.setAttribute("fill", "#292524");
+                    percentText.textContent = `${percentage}%`;
+                    sliceGroup.appendChild(percentText);
+
+                    const absoluteGrams = Math.round(state.stage4CakeSize * (percentage / 100));
+                    const gramText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    gramText.setAttribute("x", percentPos.x);
+                    gramText.setAttribute("y", percentPos.y + 10);
+                    gramText.setAttribute("font-size", "11");
+                    gramText.setAttribute("font-weight", "bold");
+                    gramText.setAttribute("fill", "#059669"); 
+                    gramText.setAttribute("text-anchor", "middle");
+                    gramText.textContent = `(${absoluteGrams}g)`;
+                    sliceGroup.appendChild(gramText);
+                } else {
+                    percentText.setAttribute("y", percentPos.y + 4);
+                    percentText.setAttribute("font-size", "14");
+                    percentText.setAttribute("font-weight", "900");
+                    percentText.setAttribute("fill", "#78716c");
+                    percentText.textContent = `${percentage}%`;
+                    sliceGroup.appendChild(percentText);
+                }
+
+                slicesGroup.appendChild(sliceGroup);
+            }
+
+            // Render Dynamic Boundary Lines and Handles
+            for (let i = 0; i < count; i++) {
+                const angle = activeAngles[i];
+                const normalizedAngle = (angle % 360 + 360) % 360;
+                const handlePos = polarToCartesian(cx, cy, r + 5, normalizedAngle);
+
+                const handleLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                handleLine.setAttribute("x1", cx);
+                handleLine.setAttribute("y1", cy);
+                handleLine.setAttribute("x2", handlePos.x);
+                handleLine.setAttribute("y2", handlePos.y);
+                handleLine.setAttribute("stroke", "#f43f5e");
+                handleLine.setAttribute("stroke-width", "2.5");
+                handleLine.setAttribute("stroke-dasharray", "4,4");
+                handlesGroup.appendChild(handleLine);
+
+                const handleGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                handleGroup.setAttribute("class", "handle-grabber cursor-move select-none");
+
+                // Enormous transparent touch target for high mobile sensitivity (r="38")
+                const touchTarget = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                touchTarget.setAttribute("cx", handlePos.x);
+                touchTarget.setAttribute("cy", handlePos.y);
+                touchTarget.setAttribute("r", "38"); 
+                touchTarget.setAttribute("fill", "transparent");
+                touchTarget.setAttribute("pointer-events", "all");
+                
+                // Visual Handle Indicator (Reacts to active dragging with micro-scaling & highlight)
+                const visibleHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                visibleHandle.setAttribute("cx", handlePos.x);
+                visibleHandle.setAttribute("cy", handlePos.y);
+                
+                const isCurrentlyDragged = (currentDragIndex === i);
+                visibleHandle.setAttribute("r", isCurrentlyDragged ? "20" : "14"); 
+                visibleHandle.setAttribute("fill", isCurrentlyDragged ? "#ffffff" : "#f43f5e");
+                visibleHandle.setAttribute("stroke", isCurrentlyDragged ? "#f43f5e" : "#ffffff");
+                visibleHandle.setAttribute("stroke-width", isCurrentlyDragged ? "5" : "3.5");
+                visibleHandle.setAttribute("filter", isCurrentlyDragged ? "drop-shadow(0px 0px 12px rgba(244,63,94,0.6))" : "drop-shadow(0px 4px 6px rgba(0,0,0,0.15))");
+                visibleHandle.setAttribute("pointer-events", "none");
+
+                touchTarget.onmousedown = (e) => startDrag(e, i);
+                touchTarget.ontouchstart = (e) => startDrag(e, i);
+
+                handleGroup.appendChild(touchTarget);
+                handleGroup.appendChild(visibleHandle);
+                handlesGroup.appendChild(handleGroup);
+            }
+
+            updateControlSliceList();
+        }
+
+        let currentDragIndex = null;
+        let cachedSvgRect = null;
+        let isRedrawPending = false;
+
+        function startDrag(e, index) {
+            if (e.cancelable) {
+                e.preventDefault();
+            }
+            currentDragIndex = index;
+            
+            // Optimization: Cache bounding rect on drag start to prevent heavy DOM thrashing inside mousemove/touchmove
+            const svg = document.getElementById('cake-svg');
+            cachedSvgRect = svg.getBoundingClientRect();
+            
+            // Trigger instant redraw to update active handle size feedback
+            drawCakeSlicing();
+
+            const options = { passive: false };
+            window.addEventListener('mousemove', handleDrag, options);
+            window.addEventListener('mouseup', endDrag, options);
+            window.addEventListener('touchmove', handleDrag, options);
+            window.addEventListener('touchend', endDrag, options);
+            window.addEventListener('touchcancel', endDrag, options);
+        }
+
+        function handleDrag(e) {
+            if (currentDragIndex === null || !cachedSvgRect) return;
+            
+            if (e.cancelable) {
+                e.preventDefault();
+            }
+
+            let clientX, clientY;
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            const mx = clientX - (cachedSvgRect.left + cachedSvgRect.width / 2);
+            const my = clientY - (cachedSvgRect.top + cachedSvgRect.height / 2);
+
+            let angle = Math.atan2(my, mx) * 180 / Math.PI + 90;
+            if (angle < 0) angle += 360;
+
+            const activeAngles = (state.step === 4) ? state.anglesStep4 : state.angles;
+            const count = state.memberCount;
+            const idx = currentDragIndex;
+
+            const prevIdx = (idx - 1 + count) % count;
+            const nextIdx = (idx + 1) % count;
+
+            let prevAngle = activeAngles[prevIdx];
+            let nextAngle = activeAngles[nextIdx];
+
+            if (idx === 0) {
+                prevAngle -= 360;
+            } else if (idx === count - 1) {
+                nextAngle += 360;
+            }
+
+            let targetAngle = angle;
+            while (targetAngle < prevAngle) targetAngle += 360;
+            while (targetAngle > nextAngle) targetAngle -= 360;
+
+            const buffer = 15;
+            if (targetAngle > prevAngle + buffer && targetAngle < nextAngle - buffer) {
+                activeAngles[idx] = Math.round(targetAngle);
+                
+                // Decouple input from rendering using requestAnimationFrame
+                scheduleAnimationFrameRedraw();
+            }
+        }
+
+        function scheduleAnimationFrameRedraw() {
+            if (isRedrawPending) return;
+            isRedrawPending = true;
+            
+            requestAnimationFrame(() => {
+                drawCakeSlicing();
+                if (state.step === 4) {
+                    calculateMaximinScore();
+                }
+                isRedrawPending = false;
+            });
+        }
+
+        function endDrag() {
+            if (currentDragIndex === null) return;
+            currentDragIndex = null;
+            
+            const options = { passive: false };
+            window.removeEventListener('mousemove', handleDrag, options);
+            window.removeEventListener('mouseup', endDrag, options);
+            window.removeEventListener('touchmove', handleDrag, options);
+            window.removeEventListener('touchend', endDrag, options);
+            window.removeEventListener('touchcancel', endDrag, options);
+            
+            // Redraw to shrink the active handle back to normal
+            drawCakeSlicing();
+            playTone(800, 0.05);
+        }
+
+        function onSliceClicked(sliceIdx) {
+            if (state.step === 4) return;
+            playTone(480, 0.05);
+            
+            const elements = document.querySelectorAll('.slice-assign-item');
+            elements.forEach(el => el.classList.remove('ring-4', 'ring-amber-500'));
+            
+            const targetEl = document.getElementById(`assign-item-${sliceIdx}`);
+            if (targetEl) {
+                targetEl.classList.add('ring-4', 'ring-amber-500');
+            }
+        }
+
+        function assignMemberToSlice(sliceIdx, memberIdx) {
+            for (let s in state.assignments) {
+                if (parseInt(s) !== sliceIdx && state.assignments[s] === memberIdx) {
+                    delete state.assignments[s];
+                }
+            }
+
+            state.assignments[sliceIdx] = memberIdx;
+            playTone(900, 0.1);
+            
+            drawCakeSlicing();
+            checkAssignmentCompletion();
+        }
+
+        function updateControlSliceList() {
+            const list = document.getElementById('slice-assigner-container');
+            if (!list) return;
+            
+            list.innerHTML = '';
+            const activeAngles = (state.step === 4) ? state.anglesStep4 : state.angles;
+            const count = state.memberCount;
+
+            for (let i = 0; i < count; i++) {
+                const startAngle = activeAngles[i];
+                const endAngle = (i === count - 1) ? (activeAngles[0] + 360) : activeAngles[i + 1];
+                const pct = Math.round(((endAngle - startAngle) / 360) * 100);
+
+                const currentAssignedMember = state.assignments[i];
+                let dropdownOptions = `<option value="">-- 분할 대상자 매칭 --</option>`;
+                
+                for (let m = 0; m < count; m++) {
+                    const member = state.members[m];
+                    const selected = currentAssignedMember === m ? 'selected' : '';
+                    dropdownOptions += `<option value="${m}" ${selected}>${member.name} (${member.role.title})</option>`;
+                }
+
+                const assignedText = (state.step === 4) 
+                    ? `<span class="text-xs bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl font-bold border border-emerald-150">실질 분배량: ${Math.round(state.stage4CakeSize * (pct / 100))}g</span>`
+                    : `<select onchange="assignMemberToSlice(${i}, parseInt(this.value))" class="text-xs p-2 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white font-bold text-amber-900">
+                           ${dropdownOptions}
+                       </select>`;
+
+                const item = `
+                    <div id="assign-item-${i}" class="slice-assign-item bg-stone-50 border border-stone-200 rounded-xl p-3 flex justify-between items-center transition-all">
+                        <div class="flex items-center gap-3">
+                            <span class="w-7 h-7 flex items-center justify-center bg-amber-600 text-white rounded-full text-xs font-bold">#${i+1}</span>
+                            <div>
+                                <span class="text-xs font-bold text-stone-800 block">조각 ${i+1} (${pct}%)</span>
+                                <span class="text-[10px] text-stone-400">자르기 경계 크기</span>
+                            </div>
+                        </div>
+                        <div>
+                            ${assignedText}
+                        </div>
+                    </div>
+                `;
+                list.insertAdjacentHTML('beforeend', item);
+            }
+        }
+
+        function checkAssignmentCompletion() {
+            const count = state.memberCount;
+            const size = Object.keys(state.assignments).length;
+            const btn = document.getElementById('btn-next-to-veil');
+            const warning = document.getElementById('assign-warning');
+
+            if (size === count) {
+                btn.removeAttribute('disabled');
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                warning.className = "text-center text-xs text-emerald-600 font-bold animate-pulse";
+                warning.innerText = "🎉 축하합니다! 모든 조각에 모둠원 배정이 무사히 완료되었습니다.";
+                btn.innerText = "다음 단계로 ➔";
+            } else {
+                btn.setAttribute('disabled', 'true');
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+                warning.className = "text-center text-xs text-rose-500 font-semibold";
+                warning.innerText = "⚠️ 모든 조각에 모둠원을 반드시 매칭해야 진행할 수 있습니다.";
+                btn.innerText = "다음 단계로 (비활성화) ➔";
+            }
+        }
+
+        function goToStep2() {
+            document.getElementById('step-2-initial-prompt').classList.remove('hidden');
+            document.getElementById('btn-shuffle').classList.remove('hidden');
+            document.getElementById('step-2-results-container').classList.add('hidden');
+
+            updateStepProgress(2);
+            triggerShuffleSound();
+            scrollToTop();
+        }
+
+        function getDerangement(count) {
+            let arr = Array.from({length: count}, (_, i) => i);
+            let shuffled = [...arr];
+            let attempts = 0;
+            
+            while (attempts < 200) {
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+                
+                let isDerangement = true;
+                for (let i = 0; i < count; i++) {
+                    if (shuffled[i] === arr[i]) {
+                        isDerangement = false;
+                        break;
+                    }
+                }
+                if (isDerangement) {
+                    return shuffled;
+                }
+                attempts++;
+            }
+            return shuffled;
+        }
+
+        function triggerVeilShuffle() {
+            document.getElementById('shuffling-loader').classList.remove('hidden');
+            triggerShuffleSound();
+            scrollToTop();
+
+            setTimeout(() => {
+                const count = state.memberCount;
+                const derangement = getDerangement(count);
+
+                state.shuffledRoles = {}; 
+                for (let i = 0; i < count; i++) {
+                    const roleSourceIdx = derangement[i];
+                    state.shuffledRoles[i] = { ...state.members[roleSourceIdx].role }; 
+                }
+
+                document.getElementById('shuffling-loader').classList.add('hidden');
+                renderStep2ShuffleResults();
+                scrollToTop();
+            }, 2500);
+        }
+
+        function renderStep2ShuffleResults() {
+            document.getElementById('step-2-initial-prompt').classList.add('hidden');
+            document.getElementById('btn-shuffle').classList.add('hidden');
+            document.getElementById('step-2-results-container').classList.remove('hidden');
+            triggerSuccessSound();
+        }
+
+        function goToStep3() {
+            updateStepProgress(3);
+            scrollToTop();
+        }
+
+        function setupDistributionStep() {
+            const container = document.getElementById('mystery-cards-container');
+            if(!container) return;
+            container.innerHTML = '';
+            
+            state.revealedSlices = [];
+            state.shuffledAssignments = {};
+            const count = state.memberCount;
+
+            document.getElementById('step3-instruction').classList.remove('hidden');
+            document.getElementById('mystery-cards-container').classList.remove('hidden');
+
+            for (let i = 0; i < count; i++) {
+                const card = `
+                    <div id="m-card-${i}" onclick="revealSliceCard(${i})" class="min-h-[220px] h-auto rounded-3xl bg-gradient-to-tr from-indigo-50/70 via-purple-50/70 to-rose-50/70 border-2 border-indigo-100/80 flex flex-col items-center justify-between cursor-pointer hover:scale-105 hover:shadow-lg hover:border-indigo-300 transition-all text-stone-700 relative group shadow-sm p-4 select-none text-center">
+                        <div class="absolute top-3 left-3 text-[10px] opacity-40">✨</div>
+                        <div class="absolute bottom-3 right-3 text-[10px] opacity-40">✨</div>
+                        
+                        <div class="w-12 h-12 rounded-full bg-white/90 border border-indigo-100 flex items-center justify-center shadow-inner mt-2 group-hover:scale-110 transition-transform">
+                            <span class="text-2xl animate-pulse">🔮</span>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <span class="text-xs font-black text-indigo-900 tracking-wider block">운명의 베일</span>
+                            <span class="text-[9px] text-indigo-400 mt-0.5 block font-medium">터치하여 조각 확인</span>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', card);
+            }
+
+            document.getElementById('debate-panel').classList.add('hidden');
+            updateTurnAnnouncer();
+        }
+
+        function updateTurnAnnouncer() {
+            const nextUnrevealed = getNextUnrevealedIndex();
+            const el = document.getElementById('turn-announcer');
+            
+            if (nextUnrevealed !== null) {
+                const member = state.members[nextUnrevealed];
+                el.innerHTML = `
+                    👉 <span class="text-amber-600 font-extrabold text-base underline">${member.name}</span> 학생의 차례입니다! <br>
+                    <span class="text-xs text-stone-500 font-normal">운명의 베일 속에서 자신이 획득할 케이크의 크기(비율)만 블라인드로 먼저 선점해 확인하세요.</span>
+                `;
+            } else {
+                el.innerText = "🎉 모둠 구성원 전원의 블라인드 조각 배정이 끝났습니다!";
+            }
+        }
+
+        function getNextUnrevealedIndex() {
+            const count = state.memberCount;
+            const revealedMemberIdxs = state.revealedSlices.map(s => state.shuffledAssignments[s]);
+            
+            for (let i = 0; i < count; i++) {
+                if (!revealedMemberIdxs.includes(i)) {
+                    return i;
+                }
+            }
+            return null;
+        }
+
+        function revealSliceCard(sliceIdx) {
+            if (state.revealedSlices.includes(sliceIdx)) {
+                showRoleDetailPopup(sliceIdx);
+                return;
+            }
+
+            const nextMemberIdx = getNextUnrevealedIndex();
+            if (nextMemberIdx === null) return;
+
+            state.shuffledAssignments[sliceIdx] = nextMemberIdx;
+            state.revealedSlices.push(sliceIdx);
+
+            const member = state.members[nextMemberIdx];
+            const finalAssignedRole = state.shuffledRoles[nextMemberIdx];
+            
+            const activeAngles = state.angles;
+            const endAngle = (sliceIdx === state.memberCount - 1) ? (activeAngles[0] + 360) : activeAngles[sliceIdx + 1];
+            const pct = Math.round(((endAngle - activeAngles[sliceIdx]) / 360) * 100);
+
+            playTone(600 + pct * 5, 0.2);
+
+            const card = document.getElementById(`m-card-${sliceIdx}`);
+            card.className = "min-h-[220px] h-auto rounded-3xl bg-white border-2 border-indigo-200 hover:border-indigo-500 flex flex-col justify-between p-4 shadow-md hover:shadow-lg transition-all relative overflow-hidden text-stone-800 text-left cursor-pointer";
+            
+            card.innerHTML = `
+                <div class="absolute -right-4 -top-4 w-10 h-10 bg-indigo-50 rounded-full opacity-50"></div>
+                <div class="space-y-1 z-10 w-full">
+                    <span class="text-[8px] bg-indigo-100 text-indigo-700 font-extrabold px-1.5 py-0.5 rounded-full uppercase block w-max tracking-wider">UNVEILED</span>
+                    <h5 class="text-sm font-black text-stone-900 mt-0.5">${member.name}</h5>
+                    <div class="flex items-center gap-1 mt-0.5 bg-indigo-50/50 p-1 rounded-xl border border-indigo-100/50">
+                        <span class="text-lg">${finalAssignedRole.emoji}</span>
+                        <span class="text-[10px] font-black text-indigo-950 leading-tight truncate">${finalAssignedRole.title}</span>
+                    </div>
+                </div>
+                
+                <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-1.5 text-center my-2 shadow-inner z-10 w-full">
+                    <span class="text-[8px] text-amber-700 font-bold block leading-none mb-0.5">획득한 케이크</span>
+                    <span class="text-lg font-black text-amber-900 leading-none block">${pct}%</span>
+                </div>
+                
+                <p class="text-[9px] text-stone-500 leading-tight line-clamp-2 z-10 border-t border-stone-100 pt-1.5 w-full">${finalAssignedRole.desc}</p>
+                <div class="text-[8px] text-indigo-500 font-bold mt-1 z-10 text-center w-full bg-indigo-50/40 rounded py-0.5 animate-pulse border border-indigo-100/30">
+                    🔍 확대 보기
+                </div>
+            `;
+
+            updateTurnAnnouncer();
+
+            if (state.revealedSlices.length === state.memberCount) {
+                showStep3DebatePanel();
+            }
+        }
+
+        function showStep3DebatePanel() {
+            const announcer = document.getElementById('turn-announcer');
+            announcer.innerHTML = `
+                <div class="text-center">
+                    <span class="text-indigo-600 font-extrabold text-base block">🔓 역할이 뒤바뀌었습니다!</span>
+                    <span class="text-xs text-stone-500 block">임시로 가져갔던 조각의 크기와 여러분의 최종 신분(처지)을 대조해보며 이기적 분배 결과의 위험성을 학습해봅시다.</span>
+                </div>
+            `;
+            document.getElementById('debate-panel').classList.remove('hidden');
+            triggerSuccessSound();
+        }
+
+        function showRoleDetailPopup(sliceIdx) {
+            const memberIdx = state.shuffledAssignments[sliceIdx];
+            if (memberIdx === undefined) return;
+
+            const member = state.members[memberIdx];
+            const finalAssignedRole = state.shuffledRoles[memberIdx];
+
+            const activeAngles = state.angles;
+            const endAngle = (sliceIdx === state.memberCount - 1) ? (activeAngles[0] + 360) : activeAngles[sliceIdx + 1];
+            const pct = Math.round(((endAngle - activeAngles[sliceIdx]) / 360) * 100);
+
+            document.getElementById('detail-member-name').innerText = `${member.name} 학생의 무지의 베일 속 처지`;
+            document.getElementById('detail-role-title').innerText = finalAssignedRole.title;
+            document.getElementById('detail-emoji').innerText = finalAssignedRole.emoji;
+            document.getElementById('detail-role-level').innerText = finalAssignedRole.level || "일반 사회 구성원";
+            document.getElementById('detail-cake-pct').innerText = `${pct}%`;
+            document.getElementById('detail-role-desc').innerText = finalAssignedRole.desc;
+
+            document.getElementById('detail-modal').classList.remove('hidden');
+            playTone(720, 0.12);
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detail-modal').classList.add('hidden');
+        }
+
+        function goToStep4() {
+            generateStep4Roles(); 
+            updateStepProgress(4);
+            calculateMaximinScore();
+            scrollToTop();
+        }
+
+        function updateLiveCakeSizeText(cakeSize) {
+            const arrow = document.getElementById('live-cakesize-arrow');
+            const display = document.getElementById('live-cakesize-display');
+            const progressBar = document.getElementById('live-cakesize-bar');
+            if(!arrow || !display) return;
+
+            display.innerText = `${cakeSize}g`;
+
+            if (progressBar) {
+                const percentageWidth = Math.max(0, Math.min(100, ((cakeSize - 50) / 300) * 100));
+                progressBar.style.width = `${percentageWidth}%`;
+            }
+
+            if (cakeSize > 100) {
+                arrow.innerText = '▲';
+                arrow.className = 'text-xl font-extrabold text-emerald-600 animate-pulse';
+                display.className = 'text-3xl font-black text-emerald-600 tracking-tight';
+            } else if (cakeSize < 100) {
+                arrow.innerText = '▼';
+                arrow.className = 'text-xl font-extrabold text-rose-600';
+                display.className = 'text-3xl font-black text-rose-600 tracking-tight';
+            } else {
+                arrow.innerText = '•';
+                arrow.className = 'text-xl font-extrabold text-stone-800';
+                display.className = 'text-3xl font-black text-stone-900 tracking-tight';
+            }
+        }
+
+        function calculateMaximinScore() {
+            const count = state.memberCount;
+            const activeAngles = state.anglesStep4;
+            
+            let minPct = 100;
+            const percentages = [];
+
+            for (let i = 0; i < count; i++) {
+                const startAngle = activeAngles[i];
+                const endAngle = (i === count - 1) ? (activeAngles[0] + 360) : activeAngles[i + 1];
+                const pct = Math.round(((endAngle - startAngle) / 360) * 100);
+                percentages.push(pct);
+                if (pct < minPct) minPct = pct;
+            }
+
+            document.getElementById('min-slice-display').innerText = `${minPct}%`;
+            
+            const liveMinDisplay = document.getElementById('live-min-slice-display');
+            if (liveMinDisplay) {
+                liveMinDisplay.innerText = `${minPct}%`;
+                liveMinDisplay.style.transform = 'scale(1.1)';
+                setTimeout(() => { liveMinDisplay.style.transform = 'scale(1.0)'; }, 100);
+            }
+
+            updateLiveCakeSizeText(state.stage4CakeSize || 100);
+        }
+
+        function triggerStep4Distribution() {
+            const count = state.memberCount;
+            
+            let studentsWithRoles = [];
+            for (let i = 0; i < count; i++) {
+                const actualRole = state.stage4ShuffledRoles[i];
+                studentsWithRoles.push({
+                    index: i,
+                    name: state.members[i].name,
+                    role: actualRole,
+                    rank: getRankFromLevel(actualRole.level)
+                });
+            }
+            studentsWithRoles.sort((a, b) => {
+                if (a.rank !== b.rank) return a.rank - b.rank; 
+                return a.index - b.index;
+            });
+
+            const activeAngles = state.anglesStep4;
+            let percentages = [];
+            for (let i = 0; i < count; i++) {
+                const startAngle = activeAngles[i];
+                const endAngle = (i === count - 1) ? (activeAngles[0] + 360) : activeAngles[i + 1];
+                const pct = Math.round(((endAngle - startAngle) / 360) * 100);
+                percentages.push(pct);
+            }
+            
+            let totalPct = percentages.reduce((sum, p) => sum + p, 0);
+            if (totalPct !== 100) {
+                percentages.sort((a, b) => b - a);
+                percentages[0] += (100 - totalPct);
+            }
+            percentages.sort((a, b) => b - a); 
+
+            let baseline = 100 / count;
+            let totalContribution = 0;
+            for (let i = 0; i < count; i++) {
+                let student = studentsWithRoles[i];
+                let ratio = percentages[i]; 
+                let diff = ratio - baseline;
+                let group = getGroupFromLevel(student.role.level);
+                let contribution = 0;
+
+                if (group === 1) {
+                    contribution = diff * 5;
+                } else if (group === 2) {
+                    contribution = diff * 2;
+                } else if (group === 3) {
+                    contribution = diff > 0 ? (diff * 1) : (diff * 3);
+                } else if (group === 4) {
+                    contribution = diff > 0 ? 0 : (diff * 4);
+                }
+                totalContribution += contribution;
+            }
+            
+            let cakeSize = 100 + (totalContribution * 3); 
+            cakeSize = Math.max(50, Math.min(350, cakeSize)); 
+            cakeSize = Math.round(cakeSize);
+            state.stage4CakeSize = cakeSize;
+
+            state.stage4FinalMatchedData = [];
+            for (let i = 0; i < count; i++) {
+                let student = studentsWithRoles[i];
+                let ratio = percentages[i]; 
+                let absoluteShare = Math.round(cakeSize * (ratio / 100)); 
+
+                state.stage4FinalMatchedData.push({
+                    studentName: student.name,
+                    role: student.role,
+                    ratio: ratio,
+                    absoluteShare: absoluteShare,
+                    rank: student.rank
+                });
+            }
+
+            state.stage4FinalMatchedData.sort((a, b) => {
+                if (a.rank !== b.rank) return a.rank - b.rank;
+                return b.ratio - a.ratio;
+            });
+
+            renderFinalComparisonResult();
+            scrollToTop();
+        }
+
+        function renderFinalComparisonResult() {
+            document.getElementById('controls-step-4').style.display = 'none';
+            document.getElementById('controls-step-4-result').style.display = 'block';
+
+            const container = document.getElementById('final-distribution-cards');
+            if(!container) return;
+            container.innerHTML = '';
+
+            const cakeSize = state.stage4CakeSize || 100;
+            const count = state.memberCount;
+            const minRequiredGram = (count === 4) ? 25 : 20;
+
+            let minShareFound = 999;
+            state.stage4FinalMatchedData.forEach(d => {
+                if (d.absoluteShare < minShareFound) {
+                    minShareFound = d.absoluteShare;
+                }
+            });
+
+            const isSuccess = (minShareFound >= minRequiredGram);
+
+            state.stage4FinalMatchedData.forEach((data, index) => {
+                const pct = data.ratio;
+                const absolute = data.absoluteShare;
+                const rolledRole = data.role;
+                const studentName = data.studentName;
+
+                const isUnderperformingCard = (absolute < minRequiredGram);
+                const borderClass = isUnderperformingCard 
+                    ? "border-rose-300 bg-rose-50/20" 
+                    : "border-emerald-100";
+
+                const card = `
+                    <div onclick="showFinalDetailPopup(${index})" class="bg-white border-2 ${borderClass} hover:scale-105 p-4 rounded-2xl flex flex-col justify-between shadow-sm cursor-pointer transition-all relative overflow-hidden">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="text-2xl select-none">${rolledRole.emoji}</span>
+                            <div class="text-left">
+                                <span class="text-xs font-bold text-stone-800 block leading-tight">${studentName}</span>
+                                <span class="text-[9px] text-emerald-600 font-extrabold block truncate max-w-[110px]">${rolledRole.title}</span>
+                            </div>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-center shadow-inner">
+                            <span class="text-[10px] text-emerald-700 font-extrabold block mb-1">⚖️ 확보된 실질 몫</span>
+                            <span class="text-sm font-black text-emerald-950 block leading-normal">
+                                실질 획득량: <span class="text-amber-600 font-black text-base">${absolute}g</span>
+                            </span>
+                            <span class="text-[10px] text-stone-500 font-medium block mt-0.5">(설정 비율: ${pct}%)</span>
+                        </div>
+                        <span class="text-[9px] text-stone-400 mt-3 block truncate leading-none">${rolledRole.desc}</span>
+                        <div class="text-[9px] text-emerald-600 font-bold mt-2.5 text-center bg-emerald-50 py-1 rounded">
+                            🔍 상세 보기
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', card);
+            });
+
+            const titleHeader = document.getElementById('final-result-title');
+            if (isSuccess) {
+                titleHeader.className = "text-base font-bold text-emerald-900 font-black flex items-center gap-2 flex-wrap";
+                titleHeader.innerHTML = `✨ 공정 정의 사회 실현 완료! <span class="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-md font-extrabold shadow-sm ml-2">사회적 총 재화량: ${cakeSize}g</span>`;
+                
+                document.getElementById('final-evaluation-banner').innerHTML = `
+                    <div class="p-4 bg-emerald-50 text-emerald-950 border border-emerald-150 rounded-xl text-xs leading-relaxed space-y-2 animate-fade-in">
+                        <span class="font-bold text-emerald-900 block mb-1">🎁 최소 수혜자(사회적 약자) 보호 성공!</span>
+                        <p>축하합니다! 이 사회는 가장 취약한 구성원의 실질 획득량(최저 몫: <strong>${minShareFound}g</strong>)이 사회안전망 한계선인 <strong>${minRequiredGram}g</strong> 이상을 안전하게 충족했습니다.</p>
+                        <p>누가 복지 약자가 될지 모르는 장막 속에서, 모둠원들이 <strong>안전한 하한선(최소극대화)</strong>을 합의해 둔 덕분에 사회의 모든 구성원이 존엄한 최소한의 생존 기준을 지켜내며 대타협에 도달했습니다.</p>
+                    </div>
+                `;
+                triggerSuccessSound();
+            } else {
+                titleHeader.className = "text-base font-bold text-rose-900 font-black flex items-center gap-2 flex-wrap";
+                titleHeader.innerHTML = `⚠️ 공정 정의 사회 실현 실패! <span class="text-xs bg-rose-100 text-rose-800 px-2.5 py-1 rounded-md font-extrabold shadow-sm ml-2">사회적 총 재화량: ${cakeSize}g</span>`;
+                
+                document.getElementById('final-evaluation-banner').innerHTML = `
+                    <div class="p-4 bg-rose-50 text-rose-950 border border-rose-150 rounded-xl text-xs leading-relaxed space-y-2 animate-fade-in">
+                        <span class="font-bold text-rose-900 block mb-1">🚨 사회 안전망 및 복지 체계 붕괴 경고!</span>
+                        <p>만약 여러분이 자신이 어떤 위치에서 태어날지 모른다면, 어떤 분배 방식을 선택하겠습니까? 롤스는 사회적 약자가 가장 큰 이익을 얻을 수 있는 사회가 정의로운 사회라고 보았습니다. 최소 수혜자의 몫을 가장 먼저 고려하는 롤스의 최소극대화(Maximin) 원칙에 따라 조각을 다시 분배해 보세요!</p>
+                    </div>
+                `;
+                triggerFailSound();
+            }
+        }
+
+        function showFinalDetailPopup(matchedIndex) {
+            const data = state.stage4FinalMatchedData[matchedIndex];
+            if (!data) return;
+
+            const rolledRole = data.role;
+            const cakeSize = state.stage4CakeSize || 100;
+
+            document.getElementById('detail-member-name').innerText = `${data.studentName} 학생의 최종 합의 결과`;
+            document.getElementById('detail-role-title').innerText = rolledRole.title;
+            document.getElementById('detail-emoji').innerText = rolledRole.emoji;
+            document.getElementById('detail-role-level').innerText = rolledRole.level || "일반 사회 구성원";
+            
+            document.getElementById('detail-cake-pct').innerText = `${data.absoluteShare}g (${data.ratio}%)`;
+            document.getElementById('detail-role-desc').innerText = rolledRole.desc;
+
+            document.getElementById('detail-modal').classList.remove('hidden');
+            playTone(720, 0.12);
+        }
+
+        function resetWholeApp() {
+            state.step = 0;
+            state.assignments = {};
+            state.shuffledAssignments = {};
+            state.shuffledRoles = {};
+            state.revealedSlices = [];
+            state.stage4ShuffledAssignments = {};
+            state.stage4ShuffledPercentages = {};
+            state.stage4ShuffledRoles = {};
+            state.stage4CakeSize = 100;
+            state.stage4FinalMatchedData = [];
+            
+            updateStepProgress(0);
+            playTone(300, 0.2);
+            scrollToTop();
+        }
+    </script>
+</body>
+</html>
